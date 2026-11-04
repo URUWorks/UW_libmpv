@@ -1,0 +1,148 @@
+# libmpv for Tero Subtitler, with the zip names Tero downloads.
+#
+# - Every month it looks for a new libmpv for Windows (shinchiro's
+#   mpv-winbuild-cmake weekly builds). If there is one, it packages and
+#   tests it (it loads, it has every function UW_MPVPlayer uses, it plays a
+#   video and an audio to the end) and only then publishes a release
+#   (v<date of the build>) with it and the frozen builds.
+# - Actions > Build > Run workflow does it now, also with no new build, or
+#   with a given build ("upstream", for example 20261104). With "publish"
+#   off the zips stay as artifacts of the run.
+# - Windows ARM64: ready, off until Tero has an ARM64 build (the x64 Tero
+#   on Windows ARM runs emulated and needs the x64 DLL). Turn it on with
+#   "winarm64" or the repository variable WINARM64 = true.
+#
+# The frozen builds (not rebuilt, see frozen.yml) are in the release
+# "frozen" and go in every release, so releases/latest/download has all.
+
+name: Build
+
+on:
+  schedule:
+    - cron: "0 7 2 * *"   # the 2nd of each month, 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: "shinchiro build (tag, for example 20261104), empty = the latest"
+        type: string
+        default: ""
+      publish:
+        description: "Publish a release"
+        type: boolean
+        default: true
+      winarm64:
+        description: "Also Windows ARM64"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+
+env:
+  UPSTREAM_REPO: shinchiro/mpv-winbuild-cmake
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      upstream: ${{ steps.check.outputs.upstream }}
+      matrix: ${{ steps.check.outputs.matrix }}
+    steps:
+      - name: Look for a new build
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM: ${{ inputs.upstream }}
+        run: |
+          if [ -z "$UPSTREAM" ]; then
+            UPSTREAM=$(gh release view -R "$UPSTREAM_REPO" --json tagName -q .tagName)
+          fi
+          ours=$(gh release list -R "${{ github.repository }}" --json tagName,isLatest -q '.[] | select(.isLatest) | .tagName' || true)
+          echo "upstream: $UPSTREAM, our latest release: ${ours:-none}"
+          build=true
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$ours" = "v$UPSTREAM" ]; then
+            echo "Nothing new."
+            build=false
+          fi
+          matrix='{"include":[{"arch":"x86_64","os":"windows-latest","zip":"libmpv2_win64.zip"}'
+          if [ "${{ inputs.winarm64 }}" = "true" ] || [ "${{ vars.WINARM64 }}" = "true" ]; then
+            matrix="$matrix"',{"arch":"aarch64","os":"windows-11-arm","zip":"libmpv2_winarm64.zip"}'
+          fi
+          matrix="$matrix]}"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "upstream=$UPSTREAM" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # mpv-dev-<arch>-<date>-git-<hash>.7z, not the x86_64-v3 (AVX2) one
+      - name: Download
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ needs.check.outputs.upstream }}" -R "$UPSTREAM_REPO" -p "mpv-dev-${{ matrix.arch }}-2*.7z"
+          ls -la *.7z
+          7z e -y -r *.7z libmpv-2.dll
+          ls -la libmpv-2.dll
+
+      - name: Test
+        run: python tools/test_libmpv.py libmpv-2.dll
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path libmpv-2.dll -DestinationPath ${{ matrix.zip }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
+
+  # TODO macOS: the current universal (arm64 + x86_64) libmpv, built with
+  # the mpvbuild scripts (with the menu bar patch for mpv 0.40). Until then
+  # libmpv_macos.zip is a frozen build too.
+
+  release:
+    needs: [check, windows]
+    if: needs.check.outputs.build == 'true' && (github.event_name == 'schedule' || inputs.publish)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM: ${{ needs.check.outputs.upstream }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: out
+          pattern: libmpv*
+          merge-multiple: true
+
+      - name: Frozen builds
+        run: gh release download frozen -R "$REPO" -D out -p "*.zip"
+
+      - name: Release
+        run: |
+          ls -la out
+          if gh release view "v$UPSTREAM" -R "$REPO" > /dev/null 2>&1; then
+            gh release upload "v$UPSTREAM" out/*.zip -R "$REPO" --clobber
+          else
+            gh release create "v$UPSTREAM" out/*.zip -R "$REPO" \
+              --target "${{ github.sha }}" --title "libmpv $UPSTREAM" --latest \
+              --notes "Windows: libmpv from the $UPSTREAM build of https://github.com/$UPSTREAM_REPO. The legacy (Windows 7/8.1, macOS 10.11-10.14) and macOS builds are the frozen ones."
+          fi

@@ -1,0 +1,65 @@
+# The frozen builds: they are not rebuilt, they're kept in the release
+# "frozen" and the Build workflow adds them to every release.
+#
+# - libmpv2_win64_legacy.zip (Windows 7/8.1): the last libmpv that runs on
+#   Windows 7, shinchiro's build of 2023-09-17 (mpv 0.36.0-303). Later
+#   builds need Windows 8 (GetSystemTimePreciseAsFileTime) and newer.
+#   This workflow downloads it, checks its SHA-256 and its imports, tests
+#   it and uploads it (Actions > Frozen builds > Run workflow).
+# - libmpv_macos_legacy.zip (macOS 10.11 to 10.14) and libmpv_macos.zip
+#   (macOS, until the current one is built here) are uploaded by hand:
+#   gh release upload frozen <zip> --clobber
+
+name: Frozen builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WIN7_URL: https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230917-git-181eddc.7z/download
+  WIN7_SHA256: 75a3640e8baced01da3d6222520e1f5e96c074266c2b2b9c080db5f5e6305b2f
+
+jobs:
+  windows-legacy:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Download
+        shell: bash
+        run: |
+          curl -sSfL --retry 3 -o mpv-dev.7z "$WIN7_URL"
+          echo "$WIN7_SHA256  mpv-dev.7z" | sha256sum -c -
+          7z e -y -r mpv-dev.7z libmpv-2.dll
+          ls -la libmpv-2.dll
+
+      - name: Check (Windows 7)
+        run: |
+          pip install pefile
+          python tools/check_win7.py libmpv-2.dll
+
+      - name: Test
+        run: python tools/test_libmpv.py libmpv-2.dll
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path libmpv-2.dll -DestinationPath libmpv2_win64_legacy.zip
+
+      - name: Upload
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view frozen > /dev/null 2>&1; then
+            gh release create frozen --target "${{ github.sha }}" --latest=false \
+              --title "Frozen builds" \
+              --notes "Builds that are not rebuilt: libmpv for Windows 7/8.1 and macOS 10.11-10.14, and the current macOS one until it is built here. Every release has them too."
+          fi
+          gh release upload frozen libmpv2_win64_legacy.zip --clobber

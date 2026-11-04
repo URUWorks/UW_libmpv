@@ -1,0 +1,5 @@
+*.zip
+*.7z
+*.dll
+*.dylib
+__pycache__/
