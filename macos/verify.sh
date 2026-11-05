@@ -16,6 +16,7 @@ for f in *.dylib; do
     for d in $(otool -arch $A -L $f | tail -n +2 | awk '{print $1}'); do
       case $d in
         /usr/lib/*|/System/*) ;;
+        @rpath/libswift*) ;;
         @loader_path/*|@rpath/*) [ -f "$(basename $d)" ] || { echo "  BAD missing $d"; bad=1; } ;;
         *) echo "  BAD dependency $d"; bad=1 ;;
       esac
