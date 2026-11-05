@@ -51,6 +51,6 @@ codesign -f -s - $FW/*.dylib(.)
 cp $H/patches/*.patch $FW/
 
 if otool -L $FW/*.dylib(.) | grep -v ":$" | grep -q "$W"; then
-  echo "ERROR: build-tree paths remain"; otool -L $FW/*.dylib(.) | grep -v ":$" | grep "$W"; exit 
+  echo "ERROR: build-tree paths remain"; otool -L $FW/*.dylib(.) | grep -v ":$" | grep "$W"; exit 1
 fi
 echo "packaged:"; ls -l $FW
