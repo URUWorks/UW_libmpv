@@ -8,7 +8,7 @@ mkdir -p $T
 [ -x $T/venv/bin/meson ] || $T/venv/bin/pip install -q meson==1.11.2 ninja==1.13.2
 export PATH=$T/bin:$T/venv/bin:/usr/bin:/bin:/usr/sbin:/sbin
 if [ ! -x $T/bin/nasm ]; then
-  mkdir -p $W/build; rm -rf $W/build/nasm; cp -R $S/nasm-2.16.03 $W/build/nasm
+  mkdir -p $W/build; rm -rf $W/build/nasm; cp -Rp $S/nasm-2.16.03 $W/build/nasm
   (cd $W/build/nasm && ./configure -q --prefix=$T && make -j8 && make install)
 fi
 if [ ! -x $T/bin/pkgconf ]; then
