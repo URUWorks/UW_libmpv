@@ -6,9 +6,9 @@
 #   builds need Windows 8 (GetSystemTimePreciseAsFileTime) and newer.
 #   This workflow downloads it, checks its SHA-256 and its imports, tests
 #   it and uploads it (Actions > Frozen builds > Run workflow).
-# - libmpv_macos_legacy.zip (macOS 10.11 to 10.14) and libmpv_macos.zip
-#   (macOS, until the current one is built here) are uploaded by hand:
-#   gh release upload frozen <zip> --clobber
+# - libmpv_macos_legacy.zip (macOS 10.11 to 10.14, mpv 0.35.0-419,
+#   universal, the dylibs at the root) is uploaded by hand:
+#   gh release upload frozen libmpv_macos_legacy.zip --clobber
 
 name: Frozen builds
 
@@ -60,6 +60,6 @@ jobs:
           if ! gh release view frozen > /dev/null 2>&1; then
             gh release create frozen --target "${{ github.sha }}" --latest=false \
               --title "Frozen builds" \
-              --notes "Builds that are not rebuilt: libmpv for Windows 7/8.1 and macOS 10.11-10.14, and the current macOS one until it is built here. Every release has them too."
+              --notes "Builds that are not rebuilt: libmpv for Windows 7/8.1 and macOS 10.11-10.14. Every release has them too."
           fi
           gh release upload frozen libmpv2_win64_legacy.zip --clobber

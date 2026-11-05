@@ -1,0 +1,133 @@
+# libmpv for macOS, universal (arm64 from macOS 11.0, x86_64 from 10.15),
+# built from the sources in macos/sources.txt with the patches of
+# macos/patches. The result is the artifact libmpv_macos.zip, with the
+# dylibs at the root (Tero Subtitler extracts it next to the other libraries).
+#
+# The versions are fixed (macos/sources.txt): mpv and FFmpeg are updated by
+# hand, checking the patches, not by the monthly check.
+
+name: macOS
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  MPV_VERSION: "0.40.0"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            min: "11.0"
+          - arch: x86_64
+            min: "10.15"
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+
+      # the original build used Xcode 15 (SDK 14), Swift 5.9
+      - name: Xcode 15
+        run: |
+          X=$(ls -d /Applications/Xcode_15*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+          swift --version
+
+      - name: Rosetta
+        if: matrix.arch == 'x86_64'
+        run: |
+          /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+          arch -x86_64 /usr/bin/true
+
+      - uses: actions/cache@v6
+        with:
+          path: work/src/dl
+          key: sources-${{ hashFiles('macos/sources.txt') }}
+
+      - name: Sources
+        run: macos/fetch.sh "$PWD/work"
+
+      - name: Tools
+        # /usr/bin/python3 is universal, so meson runs as x86_64 under Rosetta
+        run: macos/tools.sh "$PWD/work"
+
+      - name: Build
+        run: MIN=${{ matrix.min }} arch -${{ matrix.arch }} /bin/zsh macos/build.sh ${{ matrix.arch }} "$PWD/work"
+
+      - name: Keep the libraries
+        run: tar -C work/prefix -czf prefix-${{ matrix.arch }}.tgz ${{ matrix.arch }}/lib
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: prefix-${{ matrix.arch }}
+          path: prefix-${{ matrix.arch }}.tgz
+
+  package:
+    needs: build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: prefix-*
+          merge-multiple: true
+
+      - name: Universal dylibs
+        run: |
+          mkdir -p work/prefix
+          for a in arm64 x86_64; do tar -C work/prefix -xzf prefix-$a.tgz; done
+          /bin/zsh macos/package.sh "$PWD/work"
+
+      - name: Check
+        run: macos/verify.sh work/out/Frameworks 11.0 10.15
+
+      - name: Test (arm64 and x86_64 under Rosetta)
+        run: |
+          /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+          clang -arch arm64 -arch x86_64 -mmacosx-version-min=10.15 -o dltest macos/dltest.c
+          ./dltest work/out/Frameworks macos/functions.txt macos/test/test.mp4 macos/test/test.mp3
+          arch -x86_64 ./dltest work/out/Frameworks macos/functions.txt macos/test/test.mp4 macos/test/test.mp3
+
+      - name: Zip
+        run: |
+          F=work/out/Frameworks
+          cat > $F/BUILD-INFO.txt <<EOF
+          libmpv for Tero Subtitler, universal (arm64 + x86_64), ad-hoc signed.
+          Minimum macOS: arm64 11.0, x86_64 10.15. $(xcodebuild -version | head -1).
+          mpv ${MPV_VERSION} (libmpv only), patches: $(cd $F && ls *.patch | tr '\n' ' ')
+          Sources: $(grep -v '^#' macos/sources.txt | cut -d'|' -f1 | tr '\n' ' ')libplacebo-7.351.0
+          Install names are @rpath/<lib>, references between them @loader_path/<lib>.
+          EOF
+          sed -i '' 's/^ *//' $F/BUILD-INFO.txt
+          (cd $F && zip -qy ../../../libmpv_macos.zip *.dylib BUILD-INFO.txt *.patch)
+          unzip -l libmpv_macos.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: libmpv_macos.zip
+          path: libmpv_macos.zip
+
+  # the same zip on a real Intel Mac
+  test-intel:
+    needs: package
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: libmpv_macos.zip
+
+      - name: Test
+        run: |
+          mkdir fw && unzip -q libmpv_macos.zip -d fw
+          clang -mmacosx-version-min=10.15 -o dltest macos/dltest.c
+          ./dltest fw macos/functions.txt macos/test/test.mp4 macos/test/test.mp3
