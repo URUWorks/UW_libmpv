@@ -28,14 +28,16 @@ jobs:
             min: "11.0"
           - arch: x86_64
             min: "10.15"
-    runs-on: macos-14
+    # GitHub retired macos-14; macos-15 has no Xcode 15, so the oldest Xcode 16 is used
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
 
       # the original build used Xcode 15 (SDK 14), Swift 5.9
-      - name: Xcode 15
+      - name: Xcode
         run: |
-          X=$(ls -d /Applications/Xcode_15*.app | sort -V | tail -1)
+          X=$(ls -d /Applications/Xcode_15*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] || X=$(ls -d /Applications/Xcode_16*.app | sort -V | head -1)
           sudo xcode-select -s "$X"
           xcodebuild -version
           swift --version
@@ -71,7 +73,7 @@ jobs:
 
   package:
     needs: build
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
 
