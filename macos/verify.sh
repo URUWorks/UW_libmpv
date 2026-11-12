@@ -24,6 +24,9 @@ for f in *.dylib; do
   done
   codesign -v $f 2>/dev/null || { echo "  BAD signature"; bad=1; }
 done
+echo "--- libavcodec uses dav1d (AV1 software decoding):"
+f=$(ls libavcodec.*.dylib | head -1)
+otool -L $f | grep -q "libdav1d" && echo yes || { echo "  BAD libavcodec without libdav1d"; bad=1; }
 echo "--- strong swift/UTI loads in libmpv x86_64:"
 otool -arch x86_64 -l libmpv.2.dylib | grep -A2 " LC_LOAD_DYLIB" | grep -E "Uniform" && { echo "  BAD UniformTypeIdentifiers must be weak"; bad=1; } || echo none
 [ $bad = 0 ] && echo "ALL OK" || echo "FAILED"

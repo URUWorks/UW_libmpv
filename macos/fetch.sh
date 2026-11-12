@@ -17,6 +17,10 @@ if [ ! -d $S/libplacebo ]; then
     https://code.videolan.org/videolan/libplacebo.git $S/libplacebo
   [ "$(git -C $S/libplacebo rev-parse HEAD)" = 3188549fba13bbdf3a5a98de2a38c2e71f04e21e ]
 fi
+if [ ! -d $S/dav1d ]; then
+  git clone -q --depth 1 --branch 1.5.1 https://code.videolan.org/videolan/dav1d.git $S/dav1d
+  [ "$(git -C $S/dav1d rev-parse HEAD)" = 42b2b24fb8819f1ed3643aa9cf2a62f03868e3aa ]
+fi
 cd $S/mpv-0.40.0
 for p in $H/patches/*.patch; do
   patch -p1 -N -l --dry-run -s < $p && patch -p1 -N -l -s < $p || echo "already applied: $p"

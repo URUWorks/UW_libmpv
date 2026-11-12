@@ -95,8 +95,8 @@ jobs:
         run: |
           /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
           clang -arch arm64 -arch x86_64 -mmacosx-version-min=10.15 -o dltest macos/dltest.c
-          ./dltest work/out/Frameworks macos/functions.txt macos/test/test.mp4 macos/test/test.mp3
-          arch -x86_64 ./dltest work/out/Frameworks macos/functions.txt macos/test/test.mp4 macos/test/test.mp3
+          ./dltest work/out/Frameworks macos/functions.txt macos/test/test.mp4 macos/test/test.mp3 macos/test/test-vp9.webm macos/test/test-av1.webm
+          arch -x86_64 ./dltest work/out/Frameworks macos/functions.txt macos/test/test.mp4 macos/test/test.mp3 macos/test/test-vp9.webm macos/test/test-av1.webm
 
       - name: Zip
         run: |
@@ -132,4 +132,4 @@ jobs:
         run: |
           mkdir fw && unzip -q libmpv_macos.zip -d fw
           clang -mmacosx-version-min=10.15 -o dltest macos/dltest.c
-          ./dltest fw macos/functions.txt macos/test/test.mp4 macos/test/test.mp3
+          ./dltest fw macos/functions.txt macos/test/test.mp4 macos/test/test.mp3 macos/test/test-vp9.webm macos/test/test-av1.webm

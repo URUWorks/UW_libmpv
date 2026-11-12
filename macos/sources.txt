@@ -8,3 +8,4 @@ mpv-0.40.0|https://github.com/mpv-player/mpv/archive/refs/tags/v0.40.0.tar.gz|10
 nasm-2.16.03|https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.xz|1412a1c760bbd05db026b6c0d1657affd6631cd0a63cddb6f73cc6d4aa616148
 pkgconf-2.3.0|https://distfiles.ariadne.space/pkgconf/pkgconf-2.3.0.tar.xz|3a9080ac51d03615e7c1910a0a2a8df08424892b5f13b0628a204d3fcce0ea8b
 # git: libplacebo v7.351.0 = 3188549fba13bbdf3a5a98de2a38c2e71f04e21e (with submodules)
+# git: dav1d 1.5.1 = 42b2b24fb8819f1ed3643aa9cf2a62f03868e3aa (AV1 software decoder)

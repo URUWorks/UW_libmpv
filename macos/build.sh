@@ -30,7 +30,7 @@ msetup() { # srcdir builddir [opts...]
   ninja -C $bld -j$J install
 }
 
-STEPS=(freetype fribidi harfbuzz libass ffmpeg libplacebo mpv)
+STEPS=(freetype fribidi harfbuzz libass dav1d ffmpeg libplacebo mpv)
 FROM=${FROM:-freetype}
 step() { # skip until $FROM is reached
   (( ${STEPS[(Ie)$1]} >= ${STEPS[(Ie)$FROM]} )) || return 1
@@ -61,6 +61,14 @@ make -j$J
 make install
 fi
 
+# FFmpeg's own av1 decoder only works with a hardware decoder (VideoToolbox
+# decodes AV1 only on M3 and later), so without dav1d an AV1 video (a WebM from
+# YouTube, for example) is black: mpv plays the audio and has no video.
+if step dav1d; then
+msetup $S/dav1d $B/dav1d -Denable_tools=false -Denable_examples=false \
+  -Denable_tests=false -Denable_docs=false -Dlogging=false
+fi
+
 if step ffmpeg; then
 rm -rf $B/ffmpeg; mkdir -p $B/ffmpeg; cd $B/ffmpeg
 $S/ffmpeg-7.1.1/configure --prefix=$P --arch=$A --cc="clang -arch $A" \
@@ -68,6 +76,7 @@ $S/ffmpeg-7.1.1/configure --prefix=$P --arch=$A --cc="clang -arch $A" \
   --extra-cflags="$CFLAGS" --extra-ldflags="$LDFLAGS" \
   --enable-shared --disable-static --disable-programs --disable-doc \
   --disable-debug --enable-pic --enable-videotoolbox --enable-audiotoolbox \
+  --enable-libdav1d \
   --disable-sdl2 --disable-xlib --disable-libxcb --disable-avdevice \
   --disable-postproc --pkg-config=pkg-config \
   --install-name-dir='@rpath'

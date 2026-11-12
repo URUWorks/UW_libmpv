@@ -12,7 +12,7 @@ is used without changing Tero Subtitler.
 | `libmpv2_win64.zip` | Windows 10 1607 and later, x64 | current, updated monthly |
 | `libmpv2_winarm64.zip` | Windows 11 ARM64 | current, updated monthly |
 | `libmpv2_win64_legacy.zip` | Windows 7 SP1 and 8.1, x64 | frozen (mpv 0.36.0-303, 2023-09-17) |
-| `libmpv_macos.zip` | macOS 10.15 and later (Intel), 11 and later (Apple Silicon), universal | built here (mpv 0.40.0, FFmpeg 7.1.1) |
+| `libmpv_macos.zip` | macOS 10.15 and later (Intel), 11 and later (Apple Silicon), universal | built here (mpv 0.40.0, FFmpeg 7.1.1, dav1d 1.5.1) |
 | `libmpv_macos_legacy.zip` | macOS 10.11 to 10.14 | frozen (mpv 0.35.0-419, universal) |
 
 On Linux Tero Subtitler uses the libmpv of the system (for example `sudo apt install libmpv2`).
@@ -39,7 +39,7 @@ build most Windows mpv players use.
 Both zips have the dylibs at the root (Tero Subtitler extracts them next to its other
 libraries).
 
-- **Current**: a universal libmpv 2 (mpv 0.40.0, FFmpeg 7.1.1, libass, libplacebo) for
+- **Current**: a universal libmpv 2 (mpv 0.40.0, FFmpeg 7.1.1, libass, libplacebo, dav1d) for
   macOS 10.15 (Intel) and 11 (Apple Silicon) and later, with the patches of
   `macos/patches` (mpv does not replace the menu bar of Tero Subtitler, and the open
   dialogs work on macOS 10.15). `.github/workflows/macos.yml` builds it from the sources
